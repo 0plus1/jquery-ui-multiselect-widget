@@ -38,6 +38,8 @@ $.widget("ech.multiselect", {
 		hide: '',
 		autoOpen: false,
 		multiple: true,
+		maxElements: false,
+		maxElements_message: 'You cannot select more than # elements',
 		position: {}
 	},
 
@@ -55,7 +57,7 @@ $.widget("ech.multiselect", {
 				.attr({ 'title':el.attr('title'), 'aria-haspopup':true })
 				.insertAfter( el ),
 			
-			buttonlabel = (this.buttonlabel = $('<span />'))
+			buttonlabel = (this.buttonlabel = $('<span></span>'))
 				.html( o.noneSelectedText )
 				.appendTo( button ),
 				
@@ -194,12 +196,16 @@ $.widget("ech.multiselect", {
 		if( numChecked === 0 ){
 			value = o.noneSelectedText;
 		} else {
-			if($.isFunction(o.selectedText)){
-				value = o.selectedText.call(this, numChecked, $inputs.length, $checked.get());
-			} else if( /\d/.test(o.selectedList) && o.selectedList > 0 && numChecked <= o.selectedList){
-				value = $checked.map(function(){ return this.title; }).get().join(', ');
+			if(o.maxElements!=false && numChecked >= o.maxElements) {
+				value = o.maxElements_message.replace('#', o.maxElements);
 			} else {
-				value = o.selectedText.replace('#', numChecked).replace('#', $inputs.length);
+				if($.isFunction(o.selectedText)){
+					value = o.selectedText.call(this, numChecked, $inputs.length, $checked.get());
+				} else if( /\d/.test(o.selectedList) && o.selectedList > 0 && numChecked <= o.selectedList){
+					value = $checked.map(function(){ return this.title; }).get().join(', ');
+				} else {
+					value = o.selectedText.replace('#', numChecked).replace('#', $inputs.length);
+				}
 			}
 		}
 		
@@ -210,6 +216,7 @@ $.widget("ech.multiselect", {
 	// binds events
 	_bindEvents: function(){
 		var self = this, button = this.button;
+		var parent = this;
 		
 		function clickHandler(){
 			self[ self._isOpen ? 'close' : 'open' ]();
@@ -312,6 +319,19 @@ $.widget("ech.multiselect", {
 				}
 			})
 			.delegate(':checkbox, :radio', 'click', function(e){
+				
+				var o = parent.options,
+					$inputs = parent.labels.find('input'),
+					$checked = $inputs.filter(':checked'),
+					numChecked = $checked.length,
+					value;
+
+				if(o.maxElements!=false) {
+					if(numChecked > parent.options.maxElements){
+						e.preventDefault();
+						return;
+					}
+				}
 				var $this = $(this),
 					val = this.value,
 					checked = this.checked,
@@ -411,6 +431,7 @@ $.widget("ech.multiselect", {
 	},
 
 	_toggleChecked: function(flag, group){
+
 		var $inputs = (group && group.length) ?
 			group :
 			this.labels.find('input');
